@@ -1,0 +1,67 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.21005.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExcelTool", "ExcelTool\ExcelTool.csproj", "{2E1C8188-40EB-4DE9-95E7-906047AE6D53}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DAL", "DAL\DAL.csproj", "{6D861341-7095-469C-8FDE-59AD64A5AD89}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Lib", "Lib", "{2C5A5141-4D1F-45C9-8808-D237FCF58828}"
+	ProjectSection(SolutionItems) = preProject
+		Lib\MySql.Data.dll = Lib\MySql.Data.dll
+		Lib\Util.dll = Lib\Util.dll
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NPOI", "NPOI", "{8DEF322F-80D9-419E-847E-4DBBD2DC7FB9}"
+	ProjectSection(SolutionItems) = preProject
+		Lib\NPOI\ICSharpCode.SharpZipLib.dll = Lib\NPOI\ICSharpCode.SharpZipLib.dll
+		Lib\NPOI\NPOI.dll = Lib\NPOI\NPOI.dll
+		Lib\NPOI\NPOI.OOXML.dll = Lib\NPOI\NPOI.OOXML.dll
+		Lib\NPOI\NPOI.OOXML.XML = Lib\NPOI\NPOI.OOXML.XML
+		Lib\NPOI\NPOI.OpenXml4Net.dll = Lib\NPOI\NPOI.OpenXml4Net.dll
+		Lib\NPOI\NPOI.OpenXml4Net.XML = Lib\NPOI\NPOI.OpenXml4Net.XML
+		Lib\NPOI\NPOI.OpenXmlFormats.dll = Lib\NPOI\NPOI.OpenXmlFormats.dll
+		Lib\NPOI\NPOI.XML = Lib\NPOI\NPOI.XML
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BLL", "BLL\BLL.csproj", "{332A9015-45D3-458E-B32A-EE9B4650D5C4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utils", "Utils\Utils.csproj", "{0AE2D2B6-D7EB-4945-AD0C-AB9AD60715B3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Service", "Service\Service.csproj", "{D9A7A3D9-548F-4BC7-B571-F0FD4CDAF234}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2E1C8188-40EB-4DE9-95E7-906047AE6D53}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E1C8188-40EB-4DE9-95E7-906047AE6D53}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E1C8188-40EB-4DE9-95E7-906047AE6D53}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E1C8188-40EB-4DE9-95E7-906047AE6D53}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6D861341-7095-469C-8FDE-59AD64A5AD89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D861341-7095-469C-8FDE-59AD64A5AD89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D861341-7095-469C-8FDE-59AD64A5AD89}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D861341-7095-469C-8FDE-59AD64A5AD89}.Release|Any CPU.Build.0 = Release|Any CPU
+		{332A9015-45D3-458E-B32A-EE9B4650D5C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{332A9015-45D3-458E-B32A-EE9B4650D5C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{332A9015-45D3-458E-B32A-EE9B4650D5C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{332A9015-45D3-458E-B32A-EE9B4650D5C4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0AE2D2B6-D7EB-4945-AD0C-AB9AD60715B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0AE2D2B6-D7EB-4945-AD0C-AB9AD60715B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0AE2D2B6-D7EB-4945-AD0C-AB9AD60715B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0AE2D2B6-D7EB-4945-AD0C-AB9AD60715B3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D9A7A3D9-548F-4BC7-B571-F0FD4CDAF234}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D9A7A3D9-548F-4BC7-B571-F0FD4CDAF234}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D9A7A3D9-548F-4BC7-B571-F0FD4CDAF234}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D9A7A3D9-548F-4BC7-B571-F0FD4CDAF234}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{8DEF322F-80D9-419E-847E-4DBBD2DC7FB9} = {2C5A5141-4D1F-45C9-8808-D237FCF58828}
+	EndGlobalSection
+EndGlobal

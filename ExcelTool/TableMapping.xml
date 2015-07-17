@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<root>
+    <Tables>
+        <Table ExcelTableName ="玩家等级表" DBTableName="b_player_lv_r">
+            <Columns>
+                <Column ExcelColumnName="#玩家等级" DBColumnName="LV"/>
+                <Column ExcelColumnName="对应经验总值" DBColumnName="EXPTotal"/>
+                <Column ExcelColumnName="学员阶数上限" DBColumnName="HeroStepMax"/>
+                <Column ExcelColumnName="学员插槽上限" DBColumnName="HeroSlotMax"/>
+                <Column ExcelColumnName="小伙伴插槽上限" DBColumnName="MateSlotMax"/>
+            </Columns>
+        </Table>
+        <Table ExcelTableName ="资质表" DBTableName="b_quality_c">
+            <Columns>
+                <Column ExcelColumnName="资质" DBColumnName="Id"/>
+                <Column ExcelColumnName="星级" DBColumnName="StarLV"/>
+                <Column ExcelColumnName="品级" DBColumnName="Step"/>
+            </Columns>
+        </Table>
+    </Tables>    
+</root>
