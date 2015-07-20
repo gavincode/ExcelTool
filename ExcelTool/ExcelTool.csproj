@@ -152,6 +152,10 @@
       <Project>{332a9015-45d3-458e-b32a-ee9b4650d5c4}</Project>
       <Name>BLL</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Model\Model.csproj">
+      <Project>{e7914fe3-3fc8-45c5-912e-9efed87bf013}</Project>
+      <Name>Model</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Utils\Utils.csproj">
       <Project>{0ae2d2b6-d7eb-4945-ad0c-ab9ad60715b3}</Project>
       <Name>Utils</Name>

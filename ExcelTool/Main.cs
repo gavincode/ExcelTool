@@ -21,6 +21,7 @@ using System.Windows.Forms;
 namespace ExcelTool
 {
     using BLL;
+    using Model;
     using Utils.Configuration;
     using Utils.Excel;
     using Utils.Xml;
@@ -45,12 +46,6 @@ namespace ExcelTool
 
         //日志文件路径
         private String mLogFilePath = CommonBLL.GetCurrentLogFilePath();
-
-        //控制表单标签改变触发事件(导入)
-        private Boolean mAllowChangeSheetInfo = true;
-
-        //鼠标是否在查找输入框之内
-        private Boolean mFindFocused = false;
 
         //当前操作sql文件路径
         private String CurrentSqlFilePath;
@@ -82,16 +77,13 @@ namespace ExcelTool
         /// </summary>
         public Main()
         {
-            //设置窗口焦点
-            this.Focus();
-
             InitializeComponent();
 
-            //初始化数据库连接字符串
-            InitDBConnectionString();
+            //加载数据库连接字符串
+            LoadConnectionString();
 
             //设置选择TextBox的值
-            InitSelectText("点击选择需要导入的Excel文档");
+            InitSelectText(ConstantText.ClickToChoose);
 
             //加载已映射的表单列表
             InitMappingSheet();
@@ -101,12 +93,12 @@ namespace ExcelTool
         }
 
         /// <summary>
-        /// 初始化数据库连接字符串
+        /// 加载数据库连接字符串
         /// </summary>
-        private void InitDBConnectionString()
+        private void LoadConnectionString()
         {
             //读取app.config数据
-            txtConnetingString.Text = ConfigurationHelper.ConnectionString.Value; ;
+            txtConnetingString.Text = ConfigurationHelper.ConnectionString.Value;
         }
 
         /// <summary>
@@ -137,57 +129,57 @@ namespace ExcelTool
         {
             if (ExcelBLL.IsDataBaseAccess())
             {
-                //重新读取数据库表名
                 AllDbTableNames = ExcelBLL.GetTableNameList();
 
-                #region 导入界面
+                RefreshTableNames();
+            }
+        }
 
-                //重新绑定表单名
-                foreach (TreeNode item in treeViewExcels.Nodes)
+        /// <summary>
+        /// 刷新数据库表名
+        /// </summary>
+        private void RefreshTableNames()
+        {
+            //刷新导入界面
+            foreach (TreeNode item in treeViewExcels.Nodes)
+            {
+                foreach (TreeNode sheet in item.Nodes)
                 {
-                    foreach (TreeNode sheet in item.Nodes)
+                    //存在映射关系
+                    if (mMappingedSheetList.Contains(sheet.Text.ToUpper()))
                     {
-                        //对已存在映射关系的节点
-                        if (mMappingedSheetList.Contains(sheet.Text.ToUpper()))
-                        {
-                            sheet.ForeColor = Color.Red;
-                            sheet.ToolTipText = "该表存在映射关系";
-                            continue;
-                        }
-
-                        if (!AllDbTableNames.Contains(sheet.Text.ToLower()))
-                        {
-                            sheet.ForeColor = Color.Gray;
-                            sheet.ToolTipText = "当前数据库不存在该表";
-                        }
-                        else
-                        {
-                            sheet.ForeColor = Color.Black;
-                            sheet.ToolTipText = "点击复制表名";
-                        }
+                        sheet.ForeColor = Color.Red;
+                        sheet.ToolTipText = ConstantText.NoMappingRelation;
+                        continue;
                     }
-                }
 
-                #endregion
-
-                #region 导出界面
-
-                ListviewTableNames.Clear();
-                tabControlDbData.TabPages.Clear();
-
-                //将数据库表格列表绑定到界面上
-                for (Int32 i = 0; i < AllDbTableNames.Count; i++)
-                {
-                    //字段名todo
-                    ListViewItem item = new ListViewItem(AllDbTableNames[i])
+                    //数据库存在该表
+                    if (!AllDbTableNames.Contains(sheet.Text.ToLower()))
                     {
-                        ToolTipText = "单击查看该表数据"
-                    };
+                        sheet.ForeColor = Color.Gray;
+                        sheet.ToolTipText = ConstantText.TableNotExist; //"当前数据库不存在该表";
+                        continue;
+                    }
 
-                    ListviewTableNames.Items.Add(item);
+                    sheet.ForeColor = Color.Black;
+                    sheet.ToolTipText = ConstantText.ClickToCopy; //"点击复制表名";
                 }
+            }
 
-                #endregion
+            //刷新导出界面
+            ListviewTableNames.Clear();
+            tabControlDbData.TabPages.Clear();
+
+            //将数据库表格列表绑定到界面上
+            for (Int32 i = 0; i < AllDbTableNames.Count; i++)
+            {
+                //字段名todo
+                ListViewItem item = new ListViewItem(AllDbTableNames[i])
+                {
+                    ToolTipText = "单击查看该表数据"
+                };
+
+                ListviewTableNames.Items.Add(item);
             }
         }
 
@@ -207,9 +199,9 @@ namespace ExcelTool
             //构造弹出对话框
             OpenFileDialog diog = new OpenFileDialog
             {
-                Filter = @"Excel文档|*.xls;*.xlsx",
                 Multiselect = true,
-                Title = CommonBLL.GetDialogTitle()
+                Title = CommonBLL.GetDialogTitle(),
+                Filter = ConstantText.ExcelFileFilter //@"Excel文档|*.xls;*.xlsx",
             };
 
             //未选择直接返回
@@ -221,8 +213,7 @@ namespace ExcelTool
             #region 重置数据
 
             //清空缓存
-            mAllTables = new DataSet();
-            mAllowChangeSheetInfo = false;
+            mAllTables.Clear();
             treeViewExcels.Nodes.Clear();
             tabControlSheetInfo.TabPages.Clear();
             mExcelFileInfos = new Dictionary<String, String>();
@@ -257,7 +248,6 @@ namespace ExcelTool
 
             //显示友好提示信息
             lblLoadOverTimeTip.Visible = true;
-            mAllowChangeSheetInfo = true;
             InitSelectText(String.Join(";  ", diog.SafeFileNames));
 
             #endregion
@@ -341,23 +331,17 @@ namespace ExcelTool
         /// <param name="e"></param>
         private void tabControlSheetInfo_SelectedIndexChanged(Object sender, EventArgs e)
         {
-            //控制表单标签改变触发事件 ,防止在TabPage生成时触发
-            if (!mAllowChangeSheetInfo) return;
-
-            //主要针对选择已加载表单改变时的情况 (点击左侧未加载节点时,不起作用)
-            if (tabControlSheetInfo.TabPages.Count > 0)
+            if (tabControlSheetInfo.TabPages.Count == 0)
             {
-                String sheetName = tabControlSheetInfo.SelectedTab.Text;
-
-                if (mAllTables.Tables.Contains(sheetName))
-                {
-                    lblSheetInfo.Text = String.Format("表单:{0}  数据总数:{1}", sheetName, mAllTables.Tables[sheetName].Rows.Count - MoqikakaExcelSettings.SpecialRowList.Count + 1);
-                }
-                else //空表单, 如首页
-                {
-                    lblSheetInfo.Text = String.Format("表单:{0}  数据总数:{1}", sheetName, 0);
-                }
+                lblSheetInfo.Text = String.Empty;
+                return;
             }
+
+            String sheetName = tabControlSheetInfo.SelectedTab.Text;
+
+            Int32 sheetRowCount = !mAllTables.Tables.Contains(sheetName) ? 0 : mAllTables.Tables[sheetName].Rows.Count - MoqikakaExcelSettings.SpecialRowList.Count + 1;
+
+            lblSheetInfo.Text = String.Format("表单:{0}  数据总数:{1}", sheetName, sheetRowCount);
         }
 
         /// <summary>
@@ -370,58 +354,54 @@ namespace ExcelTool
             //所点击的结点名称
             String clickNodeName = e.Node.Text;
 
-            //屏蔽右键点击事件
             if (e.Button == MouseButtons.Right)
             {
                 treeViewExcels.SelectedNode = e.Node;
                 return;
             }
 
+            //不是有效的点击
+            if (NotValidClick(e)) return;
+
             if (e.Node.Level == 0)      //第一阶菜单,默认展开当前Excel所有表单
             {
-                //当用户点击CheckBox时,不加载数据
-                if (e.Location.X <= 35) return;
-
-                //屏蔽删除已有的TabPage时,触发tabControlSheetInfo_SelectedIndexChanged
-                mAllowChangeSheetInfo = false;
-                foreach (TabPage tabPage in tabControlSheetInfo.TabPages)
-                {
-                    tabControlSheetInfo.TabPages.Remove(tabPage);
-                }
-                mAllowChangeSheetInfo = true;
-
-                //异步加载表单数据
-                Action<String> loadSheet = new Action<String>(BindSheets);
-                loadSheet.BeginInvoke(mExcelFileInfos[clickNodeName], null, null);
-
-                return;
+                ShowExcelSheets(clickNodeName);
             }
-            else if (e.Node.Level == 1) //第二级结点
+            else if (e.Node.Level == 1) //第二级菜单,显示单个sheet
             {
-                //当用户点击CheckBox时,不加载数据
-                if (e.Location.X <= 55) return;
+                ShowSheet(clickNodeName, e.Node.Parent.Text);
+            }
+        }
 
-                //如果tabControlSheetInfo中存在该标签,则选中该标签
-                if (tabControlSheetInfo.TabPages.Count > 1)
+        /// <summary>
+        /// tv_Excels节点选中事件,选中第一阶点时,全选/全取消 子节点
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void treeViewExcels_AfterCheck(Object sender, TreeViewEventArgs e)
+        {
+            //第一阶节点,全选子节点
+            if (e.Node.Level == 0)
+            {
+                foreach (TreeNode node in e.Node.Nodes)
                 {
-                    foreach (TabPage tab in tabControlSheetInfo.TabPages)
-                    {
-                        if (tab.Text == clickNodeName)
-                        {
-                            tabControlSheetInfo.SelectedTab = tab;
-                            return;
-                        }
-                    }
+                    node.Checked = e.Node.Checked;
                 }
+            }
+        }
 
-                //获取表单数据
-                DataTable dt = GetSheetTable(clickNodeName, mExcelFileInfos[e.Node.Parent.Text]);
-                if (dt == null) dt = new DataTable(clickNodeName);
-
-                //创建新表单标签页
-                CreateNewTabPage(dt);
-
-                lblSheetInfo.Text = String.Format("表单:{0}  数据总数:{1}", clickNodeName, dt.Rows.Count == 0 ? 0 : dt.Rows.Count - MoqikakaExcelSettings.SpecialRowList.Count + 1);
+        /// <summary>
+        /// 快捷键
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void treeViewExcels_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.C)
+            {
+                cmsSheetNode.Show(Cursor.Position);
+                cmsSheetNode.Focus();
+                toolStripTextBoxComment.Focus();
             }
         }
 
@@ -452,7 +432,7 @@ namespace ExcelTool
             {
                 //测试成功后方能导入
                 this.btnImportBatchSheets.Enabled = true;
-                this.btnImportBatchSheets.Text = "导入";
+                this.btnImportBatchSheets.Text = ConstantText.Import; //"导入";
                 lblDbAccess.Image = Image.FromFile(Environment.CurrentDirectory + "\\Icon\\1.jpg");  //连接成功
 
                 //重新加载导出表数据
@@ -475,7 +455,7 @@ namespace ExcelTool
             }
 
             this.btnImportBatchSheets.Enabled = false;
-            this.btnImportBatchSheets.Text = "请测试";
+            this.btnImportBatchSheets.Text = ConstantText.TestPlease;
         }
 
         /// <summary>
@@ -486,53 +466,22 @@ namespace ExcelTool
         private void txtFind_TextChanged(Object sender, EventArgs e)
         {
             String input = txtFind.Text.Trim();
-            String defaultText = @"查找";
-
-            if (String.IsNullOrEmpty(input) || txtFind.Text == defaultText)
-            {
-                txtFind.Text = mFindFocused ? String.Empty : defaultText;
-                return;
-            }
 
             //匹配所有表单名
             foreach (TreeNode node in treeViewExcels.Nodes)
             {
-                //当前excel下的表单匹配的数量
-                Int32 matchedCount = 0;
+                node.Collapse();
+
                 foreach (TreeNode item in node.Nodes)
                 {
-                    //如果不匹配
-                    if (item.Text.IndexOf(input, StringComparison.Ordinal) == -1)
+                    if (!ContainsText(item.Text, input))
                     {
                         item.BackColor = Color.White;
                         continue;
                     }
 
-                    matchedCount++;
-                    item.BackColor = Color.Brown;
-                }
-
-                //如果所有都不匹配,则折叠该Excel结点
-                if (matchedCount == 0)
-                    node.Collapse();
-                else
                     node.Expand();
-            }
-        }
-
-        /// <summary>
-        /// tv_Excels节点选中事件,选中第一阶点时,全选/全取消 子节点
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void treeViewExcels_AfterCheck(Object sender, TreeViewEventArgs e)
-        {
-            //第一阶节点,全选子节点
-            if (e.Node.Level == 0)
-            {
-                foreach (TreeNode node in e.Node.Nodes)
-                {
-                    node.Checked = e.Node.Checked;
+                    item.BackColor = Color.Brown;
                 }
             }
         }
@@ -558,10 +507,10 @@ namespace ExcelTool
         /// <param name="e"></param>
         private void txtFind_MouseClick(Object sender, MouseEventArgs e)
         {
-            mFindFocused = true;
-
-            if (txtFind.Text == @"查找")
-                txtFind.Text = "";
+            if (txtFind.Text == ConstantText.Find)
+            {
+                txtFind.Text = String.Empty;
+            }
         }
 
         /// <summary>
@@ -571,10 +520,10 @@ namespace ExcelTool
         /// <param name="e"></param>
         private void txtFind_MouseLeave(Object sender, EventArgs e)
         {
-            mFindFocused = false;
-
-            if (txtFind.Text == "")
-                txtFind.Text = @"查找";
+            if (txtFind.Text == String.Empty)
+            {
+                txtFind.Text = ConstantText.Find;
+            }
         }
 
         /// <summary>
@@ -587,25 +536,22 @@ namespace ExcelTool
             //获取所点击的结点名称
             String sheetName = treeViewExcels.SelectedNode.Text;
 
-            toolStripTextBoxComment.Text = "添加表备注";
-            toolStripTextBoxComment.ToolTipText = "请输入创建表时的备注名称,\r\n以Enter键保存(C启动)";
+            //是否显示表名备注
+            Boolean showTableNameComment = treeViewExcels.SelectedNode.ForeColor == Color.Gray;
 
-            String comment = ExcelBLL.GetTableComment(sheetName);
-            if (comment != null)
-            {
-                toolStripTextBoxComment.Text = comment;
-            }
+            toolStripSeparator2.Visible = showTableNameComment;
+            toolStripTextBoxComment.Visible = showTableNameComment;
 
-            //仅当表不存在
-            if (treeViewExcels.SelectedNode.ForeColor == Color.Gray)
+            if (showTableNameComment)
             {
-                toolStripSeparator2.Visible = true;
-                toolStripTextBoxComment.Visible = true;
-            }
-            else
-            {
-                toolStripSeparator2.Visible = false;
-                toolStripTextBoxComment.Visible = false;
+                toolStripTextBoxComment.Text = ConstantText.AddComment;
+                toolStripTextBoxComment.ToolTipText = ConstantText.AddCommentTips;
+
+                String comment = ExcelBLL.GetTableComment(sheetName);
+                if (comment != null)
+                {
+                    toolStripTextBoxComment.Text = comment;
+                }
             }
         }
 
@@ -618,7 +564,7 @@ namespace ExcelTool
         {
             if (e.KeyCode != Keys.Enter) return;
 
-            if (toolStripTextBoxComment.Text == "添加表备注") return;
+            if (toolStripTextBoxComment.Text == ConstantText.AddComment) return;
 
             //保存备注信息
             ExcelBLL.AddTableComment(treeViewExcels.SelectedNode.Text, toolStripTextBoxComment.Text);
@@ -633,8 +579,7 @@ namespace ExcelTool
         /// <param name="e"></param>
         private void toolStripTextBoxComment_Click(object sender, EventArgs e)
         {
-            toolStripTextBoxComment.SelectAll();
-            toolStripTextBoxComment.Text = "";
+            toolStripTextBoxComment.Text = String.Empty;
         }
 
         /// <summary>
@@ -648,18 +593,18 @@ namespace ExcelTool
             String sheetName = treeViewExcels.SelectedNode.Text;
 
             //复制表名
-            if (e.ClickedItem.Text.Contains("复制表名"))
+            if (e.ClickedItem.Text.Contains(ConstantText.CopySheetName))
             {
                 Clipboard.SetText(sheetName);
                 return;
             }
 
             //映射该表
-            if (e.ClickedItem.Text.Contains("映射该表"))
+            if (e.ClickedItem.Text.Contains(ConstantText.MappingTable))
             {
                 //实例化弹出映射窗体
                 TableMapping tableMapping = new TableMapping(sheetName, mExcelFileInfos[treeViewExcels.SelectedNode.Parent.Text], this);
-                DialogResult res = tableMapping.ShowDialog(this);
+                tableMapping.ShowDialog(this);
 
                 //改变所选节点,映射状态
                 XMLHelper xmlHelper = new XMLHelper("TableMapping.xml");
@@ -667,28 +612,13 @@ namespace ExcelTool
                 if (xmlHelper.GetTableNameMapping(sheetName) != null)
                 {
                     treeViewExcels.SelectedNode.ForeColor = Color.Red;
-                    treeViewExcels.SelectedNode.ToolTipText = "该表存在映射关系";
+                    treeViewExcels.SelectedNode.ToolTipText = ConstantText.MappingExist;
                 }
                 else
                 {
                     treeViewExcels.SelectedNode.ForeColor = Color.Black;
-                    treeViewExcels.SelectedNode.ToolTipText = "点击复制表名";
+                    treeViewExcels.SelectedNode.ToolTipText = ConstantText.ClickToCopy;
                 }
-            }
-        }
-
-        /// <summary>
-        /// 快捷键
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void treeViewExcels_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.C)
-            {
-                cmsSheetNode.Show(Cursor.Position);
-                cmsSheetNode.Focus();
-                toolStripTextBoxComment.Focus();
             }
         }
 
@@ -705,15 +635,15 @@ namespace ExcelTool
         {
             if (ListviewTableNames.CheckedItems.Count == 0) return;
 
-            //上次导出Excel文档存放文件路径
-            String exportExcelFilePath = CommonBLL.GetStoredFolder();
-
             //选择存放路径
             FolderBrowserDialog fbd = new FolderBrowserDialog
             {
                 ShowNewFolderButton = true,
-                Description = @"Excel文档存放位置"
+                Description = ConstantText.ExportDescription
             };
+
+            //上次导出Excel文档存放文件路径
+            String exportExcelFilePath = CommonBLL.GetStoredFolder();
 
             //如果存在上次导出所选路径
             if (!String.IsNullOrEmpty(exportExcelFilePath)) fbd.SelectedPath = exportExcelFilePath;
@@ -731,23 +661,25 @@ namespace ExcelTool
             foreach (ListViewItem item in ListviewTableNames.CheckedItems)
             {
                 String tableName = item.Text.Trim();
-                exportExcelFilePath = Path.Combine(selectedPath, tableName + ".xlsx");
+                String filePath = Path.Combine(selectedPath, tableName + ".xlsx");
 
                 //获取导出数据
                 DataTable dt = ExcelBLL.GetTableData(tableName);
                 dt.TableName = tableName;
 
                 //导出Excel
-                MoqikakaExcel.Write(dt, exportExcelFilePath, ExcelBLL.GetComments(tableName));
+                MoqikakaExcel.Write(dt, filePath, ExcelBLL.GetComments(tableName));
 
                 successCount++;
             }
 
             btnExpertExcel.Enabled = true;
 
-            DialogResult result = MessageBox.Show(@"查看文件夹", String.Format("成功导出{0}个表格", successCount), MessageBoxButtons.OKCancel);
-            if (result == System.Windows.Forms.DialogResult.OK)
+            DialogResult result = MessageBox.Show(ConstantText.ShowFolder, String.Format(ConstantText.ExportSuccessTips, successCount), MessageBoxButtons.OKCancel);
+            if (result == DialogResult.OK)
+            {
                 Process.Start(selectedPath);
+            }
         }
 
         /// <summary>
@@ -764,49 +696,17 @@ namespace ExcelTool
             String tableName = ListviewTableNames.FocusedItem.Text;
 
             //若存在该表标签,选中该标签
-            if (tabControlDbData.TabPages.Count > 0)
+            foreach (TabPage page in tabControlDbData.TabPages)
             {
-                foreach (TabPage page in tabControlDbData.TabPages)
+                //若TablePages存在该表单,则选中该TabPage
+                if (page.Text == tableName)
                 {
-                    //若TablePages存在该表单,则选中该TabPage
-                    if (page.Text == tableName)
-                    {
-                        tabControlDbData.SelectedTab = page;
-                        return;
-                    }
+                    tabControlDbData.SelectedTab = page;
+                    return;
                 }
             }
 
-            //保留前五次所点击的项
-            List<String> lastFiveClickedItem = new List<String>();
-
-            //最多显示5个TabPage
-            if (tabControlDbData.TabPages.Count > 4)
-            {
-                tabControlDbData.TabPages.RemoveAt(0);
-            }
-
-            //获取并绑定数据
-            DataTable tableData = ExcelBLL.GetTableData(tableName);
-            TabPage newPage = new TabPage(tableName);
-            newPage.Controls.Add(CreatSingleGridview(tableData));
-            tabControlDbData.TabPages.Add(newPage);
-            tabControlDbData.SelectedTab = newPage;
-
-            //将当前TabPages加入保存项
-            foreach (TabPage item in tabControlDbData.TabPages)
-            {
-                lastFiveClickedItem.Add(item.Text);
-            }
-
-            //对保存项TabPage进行变色
-            foreach (ListViewItem item in ListviewTableNames.Items)
-            {
-                item.BackColor = lastFiveClickedItem.Contains(item.Text) ? Color.Gainsboro : Color.White;
-            }
-
-            //设置ListView焦点
-            ListviewTableNames.Focus();
+            ShowTableData(tableName);
         }
 
         /// <summary>
@@ -828,20 +728,13 @@ namespace ExcelTool
         private void txtFindExportTable_TextChanged(Object sender, EventArgs e)
         {
             String tableName = txtFindExportTable.Text;
-            String defaultText = @"查找";
-
-            if (String.IsNullOrEmpty(tableName) || tableName == defaultText)
-            {
-                txtFindExportTable.Text = mFindFocused ? String.Empty : @"查找";
-                return;
-            }
 
             Boolean locatedFirstPostion = false;  //是否 已定位到第一满足项 (防止焦点不断移动)
 
             //匹配所有节点
             foreach (ListViewItem item in ListviewTableNames.Items)
             {
-                if (item.Text.IndexOf(tableName, StringComparison.Ordinal) != -1)
+                if (ContainsText(item.Text, tableName))
                 {
                     if (!locatedFirstPostion) //仅定位一次
                     {
@@ -849,7 +742,7 @@ namespace ExcelTool
                         ListviewTableNames.EnsureVisible(item.Index);
                         locatedFirstPostion = true;
                     }
-                    //设置符合项背景色
+
                     item.Checked = true;
                 }
                 else
@@ -869,11 +762,9 @@ namespace ExcelTool
         /// <param name="e"></param>
         private void txtFindExportTable_MouseClick(Object sender, MouseEventArgs e)
         {
-            mFindFocused = true;
-
-            if (txtFindExportTable.Text == @"查找")
+            if (txtFindExportTable.Text == ConstantText.Find)
             {
-                txtFindExportTable.Text = "";
+                txtFindExportTable.Text = String.Empty;
             }
         }
 
@@ -884,11 +775,9 @@ namespace ExcelTool
         /// <param name="e"></param>
         private void txtFindExportTable_MouseLeave(Object sender, EventArgs e)
         {
-            mFindFocused = false;
-
-            if (txtFindExportTable.Text == "")
+            if (txtFindExportTable.Text == String.Empty)
             {
-                txtFindExportTable.Text = @"查找";
+                txtFindExportTable.Text = ConstantText.Find;
             }
         }
 
@@ -901,18 +790,15 @@ namespace ExcelTool
         {
             if (e.KeyData == Keys.Enter)
             {
+                //清空当前TabPage页
+                tabControlDbData.TabPages.Clear();
+
                 //添加所有匹配项的标签页
                 foreach (ListViewItem item in ListviewTableNames.Items)
                 {
-                    if (item.Checked)
-                    {
-                        //获取并绑定数据
-                        DataTable tableData = ExcelBLL.GetTableData(item.Text);
-                        TabPage page = new TabPage(item.Text);
-                        page.Controls.Add(CreatSingleGridview(tableData));
-                        tabControlDbData.TabPages.Add(page);
-                        tabControlDbData.SelectedTab = page;
-                    }
+                    if (!item.Checked) continue;
+
+                    AddTabPage(item.Text);
                 }
             }
         }
@@ -1003,7 +889,7 @@ namespace ExcelTool
             rtxtLog.Text = @"没有日志记录";
 
             //清空文件
-            File.WriteAllText(mLogFilePath, "");
+            File.WriteAllText(mLogFilePath, String.Empty);
         }
 
         #endregion
@@ -1011,11 +897,135 @@ namespace ExcelTool
         #region 内部调用方法
 
         /// <summary>
+        /// 显示单个表单数据
+        /// </summary>
+        /// <param name="sheetName">表单名</param>
+        /// <param name="excelName">所属excel名</param>
+        private void ShowSheet(String sheetName, String excelName)
+        {
+            //如果tabControlSheetInfo中存在该标签,则选中该标签
+            foreach (TabPage tab in tabControlSheetInfo.TabPages)
+            {
+                if (tab.Text == sheetName)
+                {
+                    tabControlSheetInfo.SelectedTab = tab;
+                    return;
+                }
+            }
+
+            //获取表单数据
+            DataTable dt = GetSheetTable(sheetName, mExcelFileInfos[excelName]);
+            if (dt == null) dt = new DataTable(sheetName);
+
+            //创建新表单标签页
+            CreateNewTabPage(dt);
+
+            lblSheetInfo.Text = String.Format("表单:{0}  数据总数:{1}", sheetName, dt.Rows.Count == 0 ? 0 : dt.Rows.Count - MoqikakaExcelSettings.SpecialRowList.Count + 1);
+        }
+
+        /// <summary>
+        /// 显示整个excel表单数据
+        /// </summary>
+        /// <param name="excelName">所属excel名</param>
+        private void ShowExcelSheets(string excelName)
+        {
+            //删除已有标签
+            tabControlSheetInfo.TabPages.Clear();
+
+            //异步加载表单数据
+            Action<String> loadSheet = new Action<String>(BindSheets);
+            loadSheet.BeginInvoke(mExcelFileInfos[excelName], null, null);
+
+        }
+
+        /// <summary>
+        /// 不是有效的点击
+        /// </summary>
+        /// <param name="e"></param>
+        /// <returns></returns>
+        private bool NotValidClick(TreeNodeMouseClickEventArgs e)
+        {
+            if (e.Node.Level == 0 && e.Location.X <= 35) return true;
+
+            if (e.Node.Level == 1 && e.Location.X <= 55) return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// 是否包含文本
+        /// </summary>
+        /// <param name="sheetName">表单名</param>
+        /// <param name="searchText">搜索文本</param>
+        /// <returns>是否包含文本</returns>
+        private bool ContainsText(string sheetName, string searchText)
+        {
+            if (String.IsNullOrEmpty(searchText)) return false;
+
+            return sheetName.IndexOf(searchText, StringComparison.Ordinal) != -1;
+        }
+
+        /// <summary>
+        /// 显示表数据
+        /// </summary>
+        /// <param name="tableName">表名</param>
+        private void ShowTableData(string tableName)
+        {
+            //最多显示5个TabPage
+            if (tabControlDbData.TabPages.Count > 4)
+            {
+                tabControlDbData.TabPages.RemoveAt(0);
+            }
+
+            AddTabPage(tableName);
+
+            KeepShowTableColor();
+        }
+
+        /// <summary>
+        /// 显示在TabPage的表名变色
+        /// </summary>
+        private void KeepShowTableColor()
+        {
+            //保留前五次所点击的项
+            List<String> lastFiveClickedItem = new List<String>();
+            foreach (TabPage item in tabControlDbData.TabPages)
+            {
+                lastFiveClickedItem.Add(item.Text);
+            }
+
+            //对保存项TabPage进行变色
+            foreach (ListViewItem item in ListviewTableNames.Items)
+            {
+                item.BackColor = lastFiveClickedItem.Contains(item.Text) ? Color.Gainsboro : Color.White;
+            }
+        }
+
+        /// <summary>
+        /// 添加数据库表tab页
+        /// </summary>
+        /// <param name="tableName">表名</param>
+        private void AddTabPage(string tableName)
+        {
+            TabPage newPage = new TabPage(tableName);
+
+            //获取并绑定数据
+            DataTable tableData = ExcelBLL.GetTableData(tableName);
+
+            newPage.Controls.Add(CreatSingleGridview(tableData));
+
+            tabControlDbData.TabPages.Add(newPage);
+            tabControlDbData.SelectedTab = newPage;
+        }
+
+        /// <summary>
         /// 选中多个Excel后,采用异步加载多个Excel中的表单节点
         /// </summary>
         /// <param name="selectedExcelInfos">选择的Excel表单信息</param>
         private void LoadExcelSheets(Dictionary<String, String> selectedExcelInfos)
         {
+            //todo refactoring to here
+
             //是否为第一个Excel节点
             Boolean firstExcelNode = true;
 
@@ -1032,13 +1042,13 @@ namespace ExcelTool
                     TreeNode[] nodes = GetSheetNodesByExcelFile(excel);
 
                     //跨线程向treeViewExcels添加节点
-                    this.Invoke(new Action(() =>
+                    InvokeMethod(() =>
                     {
                         //绑定TreeView
                         TreeNode listViewItem = new TreeNode(item.Key, nodes)
                         {
                             Checked = true,
-                            ToolTipText = "查看整个Excel表单"
+                            ToolTipText = ConstantText.ShowAllSheets
                         };
 
                         if (firstExcelNode)
@@ -1048,19 +1058,18 @@ namespace ExcelTool
                         }
 
                         treeViewExcels.Nodes.Add(listViewItem);
-                    }));
+                    });
                 });
 
                 invoker.BeginInvoke(p =>
                 {
-                    if (item.Value == lastExcel)
+                    if (item.Value != lastExcel) return;
+
+                    InvokeMethod(() =>
                     {
-                        Invoke(new Action(() =>
-                        {
-                            btnImportBatchSheets.Text = "导入";
-                            btnImportBatchSheets.Enabled = true;
-                        }));
-                    }
+                        btnImportBatchSheets.Text = "导入";
+                        btnImportBatchSheets.Enabled = true;
+                    });
                 }, null);
             }
         }
@@ -1400,6 +1409,15 @@ namespace ExcelTool
             page.Controls.Add(dgv);
 
             tabControlSheetInfo.TabPages.Add(page);
+        }
+
+        /// <summary>
+        /// 主线程调用方法
+        /// </summary>
+        /// <param name="action">委托方法</param>
+        private void InvokeMethod(Action action)
+        {
+            this.BeginInvoke(action);
         }
 
         #region Excel读取/缓存

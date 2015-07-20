@@ -172,11 +172,11 @@ namespace Utils.Excel
                 }
             }
 
-            //单元格自适应宽度
-            for (Int32 i = 0; i < dataSource.Columns.Count; i++)
-            {
-                sheet.AutoSizeColumn(i);
-            }
+            ////单元格自适应宽度
+            //for (Int32 i = 0; i < dataSource.Columns.Count; i++)
+            //{
+            //    sheet.AutoSizeColumn(i);
+            //}
 
             //将表单写入文件
             workbook.Write(File.Create(path));
