@@ -303,7 +303,7 @@ namespace ExcelTool
             //没有可导入的数据
             if (selectedSheets.Count == 0)
             {
-                MessageBox.Show("没有可导入的数据, 或配置中CreateTable == false!");
+                MessageBox.Show(ConstantText.NoSelectedExcelToImport);
                 btnImportBatchSheets.Enabled = true;
                 return;
             }
@@ -311,7 +311,7 @@ namespace ExcelTool
             //检测数据库连接字符串是否可用
             if (!ExcelBLL.IsDataBaseAccess())
             {
-                MessageBox.Show(@"请检查该数据库连接字符串是否正确!");
+                MessageBox.Show(ConstantText.ConnectStringErrorTips);
                 btnImportBatchSheets.Enabled = true;
                 return;
             }
@@ -365,6 +365,8 @@ namespace ExcelTool
 
             if (e.Node.Level == 0)      //第一阶菜单,默认展开当前Excel所有表单
             {
+                e.Node.ExpandAll(); //展开子节点
+
                 ShowExcelSheets(clickNodeName);
             }
             else if (e.Node.Level == 1) //第二级菜单,显示单个sheet
@@ -1024,54 +1026,62 @@ namespace ExcelTool
         /// <param name="selectedExcelInfos">选择的Excel表单信息</param>
         private void LoadExcelSheets(Dictionary<String, String> selectedExcelInfos)
         {
-            //todo refactoring to here
+            //根据文件大小排序
+            var orderList = selectedExcelInfos.OrderBy(p => new FileInfo(p.Value).Length).ToList();
 
-            //是否为第一个Excel节点
-            Boolean firstExcelNode = true;
+            //第一个excel路径
+            var firstExcelPath = orderList.First().Value;
 
-            //最后一个excel
-            var lastExcel = selectedExcelInfos.OrderBy(p => new FileInfo(p.Value).Length).Last().Value;
+            //最后一个excel路径
+            var lastExcelPath = orderList.Last().Value;
 
             //循环处理每个Excel
-            foreach (var item in selectedExcelInfos.OrderBy(p => new FileInfo(p.Value).Length))
+            foreach (var item in orderList)
             {
-                MethodInvoker invoker = new MethodInvoker(() =>
-                {
-                    MoqikakaExcel excel = LoadExcel(item.Value);
-
-                    TreeNode[] nodes = GetSheetNodesByExcelFile(excel);
-
-                    //跨线程向treeViewExcels添加节点
-                    InvokeMethod(() =>
-                    {
-                        //绑定TreeView
-                        TreeNode listViewItem = new TreeNode(item.Key, nodes)
-                        {
-                            Checked = true,
-                            ToolTipText = ConstantText.ShowAllSheets
-                        };
-
-                        if (firstExcelNode)
-                        {
-                            listViewItem.ExpandAll();
-                            firstExcelNode = false;
-                        }
-
-                        treeViewExcels.Nodes.Add(listViewItem);
-                    });
-                });
-
-                invoker.BeginInvoke(p =>
-                {
-                    if (item.Value != lastExcel) return;
-
-                    InvokeMethod(() =>
-                    {
-                        btnImportBatchSheets.Text = "导入";
-                        btnImportBatchSheets.Enabled = true;
-                    });
-                }, null);
+                LoadExcelAsync(item.Key, item.Value, firstExcelPath, lastExcelPath);
             }
+        }
+
+        /// <summary>
+        /// 异步加载Excel文档
+        /// </summary>
+        /// <param name="fileName">excel名</param>
+        /// <param name="filePath">excel文件路径</param>
+        /// <param name="firstExcelNode">是否为第一个excel</param>
+        /// <param name="lastExcelPath">最后一个excel路径</param>
+        private void LoadExcelAsync(string fileName, string filePath, string firstExcelPath, string lastExcelPath)
+        {
+            MethodInvoker invoker = new MethodInvoker(() =>
+            {
+                MoqikakaExcel excel = LoadExcel(filePath);
+
+                TreeNode[] nodes = GetSheetNodesByExcelFile(excel);
+
+                //跨线程向treeViewExcels添加节点
+                InvokeMethod(() =>
+                {
+                    //绑定TreeView
+                    TreeNode listViewItem = new TreeNode(fileName, nodes)
+                    {
+                        Checked = true,
+                        ToolTipText = ConstantText.ShowAllSheets
+                    };
+
+                    if (firstExcelPath == filePath)
+                    {
+                        listViewItem.ExpandAll();
+                    }
+
+                    treeViewExcels.Nodes.Add(listViewItem);
+
+                    if (filePath != lastExcelPath) return;
+
+                    btnImportBatchSheets.Text = ConstantText.Import;
+                    btnImportBatchSheets.Enabled = true;
+                });
+            });
+
+            invoker.BeginInvoke(null, null);
         }
 
         /// <summary>
@@ -1092,22 +1102,22 @@ namespace ExcelTool
             {
                 TreeNode node = new TreeNode(sheetList[i])
                 {
-                    ContextMenuStrip = cmsSheetNode,
                     Checked = true,
-                    ToolTipText = "右击可复制表名"
+                    ContextMenuStrip = cmsSheetNode,
+                    ToolTipText = ConstantText.ClickRightToCopy
                 };
 
                 //对已存在映射关系的节点
                 if (mMappingedSheetList.Contains(sheetList[i].ToUpper()))
                 {
                     node.ForeColor = Color.Red;
-                    node.ToolTipText = "该表存在映射关系";
+                    node.ToolTipText = ConstantText.MappingExist;
                 }
 
                 if (!AllDbTableNames.Contains(sheetList[i].ToLower()))
                 {
                     node.ForeColor = Color.Gray;
-                    node.ToolTipText = "当前数据库不存在该表";
+                    node.ToolTipText = ConstantText.TableNotExist;
                 }
 
                 //添加到对应节点
@@ -1126,21 +1136,16 @@ namespace ExcelTool
             //加载excel对象
             MoqikakaExcel excel = LoadExcel(path);
 
-            #region 创建表单标签页
-
             TabPage[] pages = new TabPage[excel.NumberOfSheets];
 
             //初始化TabPage标签
             for (Int32 i = 0; i < excel.NumberOfSheets; i++)
             {
-                TabPage page = new TabPage(excel.GetSheetName(i));
-                pages[i] = page;
+                pages[i] = new TabPage(excel.GetSheetName(i));
             }
 
             //跨线程改变主线程控件
             tabControlSheetInfo.Invoke(new MethodInvoker(() => tabControlSheetInfo.TabPages.AddRange(pages)));
-
-            #endregion
 
             //附加数据到每个TabPage页面
             AppendDataToTabPages(excel);
@@ -1163,7 +1168,7 @@ namespace ExcelTool
                 table = GetSheetTable(sheetName, excel);
 
                 //通知主线程控件,数据已准备好
-                tabControlSheetInfo.Invoke(new Action(() =>
+                tabControlSheetInfo.Invoke(new MethodInvoker(() =>
                 {
                     if (tabControlSheetInfo.TabPages.Count > i)
                     {
@@ -1227,18 +1232,16 @@ namespace ExcelTool
             Func<Dictionary<String, String>, Dictionary<String, Int32>> handler = (Func<Dictionary<String, String>, Dictionary<String, Int32>>)((AsyncResult)result).AsyncDelegate;
             Dictionary<String, Int32> res = handler.EndInvoke(result); //获取调用结果
 
-            Invoke(new Action(() =>
-            {
-                btnImportBatchSheets.Enabled = true;   //跨线程改变控件状态
-                pgbBatchImport.Value = 0;
-                lblImportTableName.Text = @"  导入进度:";
-            }));
+            //刷新UI控件状态
+            RefreshUIStatus();
+            
+            //todo refactoring here
 
             //所有表单导入明细
-            StringBuilder allTableImportDetails = new StringBuilder();
+            StringBuilder allTableImportDetails = new StringBuilder(ConstantText.ImportDetailResultTips);
 
             //导入失败的表单明细
-            StringBuilder failedTableImportDetails = new StringBuilder();
+            StringBuilder failedTableImportDetails = new StringBuilder(ConstantText.ImorptErrorResultTips);
 
             //导入失败的表单数量
             Int32 failedCount = 0;
@@ -1246,56 +1249,59 @@ namespace ExcelTool
             //是否已更新checktime
             Boolean hasUpdated = false;
 
-            allTableImportDetails.AppendLine("本次导入明细如下 :");
-            failedTableImportDetails.AppendLine("本次导入异常表格明细如下 :");
-
             //遍历每个表单导入结果,构造导入结果明细
             foreach (var item in res)
             {
                 //添加到所有表单导入情况
-                allTableImportDetails.AppendLine(String.Format("{0} 导入数量为: {1}", item.Key, item.Value));
+                allTableImportDetails.AppendLine(String.Format(ConstantText.ImportResultInfo, item.Key, item.Value));
 
                 //导入结果为0的表单,添加到失败明细
                 if (item.Value == 0)
                 {
                     failedCount++;
-                    failedTableImportDetails.AppendLine(String.Format("{0} 导入数量为: {1}", item.Key, item.Value));
+                    failedTableImportDetails.AppendLine(String.Format(ConstantText.ImportResultInfo, item.Key, item.Value));
                 }
-                else
+                else if (!hasUpdated && (item.Key.StartsWith("b_") || item.Key.StartsWith("d_")))
                 {
-                    //更新template_checkinfo
-                    if (!hasUpdated && (item.Key.StartsWith("b_") || item.Key.StartsWith("d_")))
-                    {
-                        ExcelBLL.UpdateCheckInfoTime();
-                        hasUpdated = true;
-                    }
+                    ExcelBLL.UpdateCheckInfoTime();
+                    hasUpdated = true;
                 }
-            }
-
-            //重新加载数据
-            if (ExcelBLL.IfCreateTable())
-            {
-                Invoke(new Action(() =>
-                {
-                    InitDbTables();
-                }));
             }
 
             //记录所有表单导入明细
             Trace.Write(allTableImportDetails.ToString());
 
+            //记录导入异常信息
             if (failedTableImportDetails.Length > 16)
+            {
                 Trace.Write(failedTableImportDetails.ToString());
+            }
 
             //如果全部导入成功 (包括 首页无数据的情况)
             if (failedCount == 0)
             {
-                MessageBox.Show(@"导入成功!");
+                MessageBox.Show(ConstantText.ImportSuccess);
             }
             else
             {
                 MessageBox.Show(failedTableImportDetails.ToString());
             }
+        }
+
+        /// <summary>
+        /// 刷新UI状态
+        /// </summary>
+        private void RefreshUIStatus()
+        {
+            InvokeMethod(() =>
+            {
+                pgbBatchImport.Value = 0;
+                btnImportBatchSheets.Enabled = true;
+                lblImportTableName.Text = ConstantText.ImportProccess;
+
+                //重新加载数据
+                if (ExcelBLL.IfCreateTable()) InitDbTables();
+            });
         }
 
         /// <summary>
@@ -1315,18 +1321,18 @@ namespace ExcelTool
             Boolean ifLogSQL = ConfigurationHelper.AppSettings["LogSql"].ToLower() == "true";
 
             //初始化进度条状态
-            pgbBatchImport.Invoke(new Action(() =>
+            InvokeMethod(() =>
             {
                 pgbBatchImport.Maximum = selectedSheets.Count;
-            }));
+            });
 
             //遍历所有已选表单,进行导入
             foreach (String sheetName in selectedSheets.Keys)
             {
-                pgbBatchImport.Invoke(new Action(() =>
+                InvokeMethod(() =>
                 {
                     lblImportTableName.Text = sheetName;
-                }));
+                });
 
                 Int32 insertRowCount = 0;
 
@@ -1337,16 +1343,15 @@ namespace ExcelTool
 
                 try
                 {
-                    if (table != null)
-                    {
-                        //构造sql执行语句
-                        sqlList = ExcelBLL.GetSQL(table);
+                    if (table == null) continue;
 
-                        //如果表存在,则执行sql
-                        if (AllDbTableNames.Contains(sheetName.ToLower()) || ifCreateTable)
-                        {
-                            insertRowCount = ExcelBLL.Insert(sqlList, sheetName, selectedSheets[sheetName], ifCreateTable);
-                        }
+                    //构造sql执行语句
+                    sqlList = ExcelBLL.GetSQL(table);
+
+                    //如果表存在,则执行sql
+                    if (AllDbTableNames.Contains(sheetName.ToLower()) || ifCreateTable)
+                    {
+                        insertRowCount = ExcelBLL.Insert(sqlList, sheetName, selectedSheets[sheetName], ifCreateTable);
                     }
                 }
                 catch (Exception ex)
@@ -1380,10 +1385,10 @@ namespace ExcelTool
                     }
 
                     //跨线程更新UI
-                    pgbBatchImport.Invoke(new Action(() =>
+                    InvokeMethod(() =>
                     {
                         pgbBatchImport.Value++;
-                    }));
+                    });
                 }
             }
 

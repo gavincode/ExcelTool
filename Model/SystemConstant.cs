@@ -49,5 +49,21 @@ namespace Model
         public static string ExportSuccessTips = "成功导出{0}个表格";
 
         public static string ShowAllSheets = "查看整个Excel表单";
+
+        public static string ClickRightToCopy = "右击可复制表名";
+
+        public static string ImportProccess = @"  导入进度:";
+
+        public static string NoSelectedExcelToImport = "没有可导入的数据, 或配置中CreateTable == false!";
+
+        public static string ConnectStringErrorTips = @"请检查该数据库连接字符串是否正确!";
+
+        public static string ImportDetailResultTips = "本次导入明细如下 :";
+
+        public static string ImorptErrorResultTips = "本次导入异常表格明细如下 :";
+
+        public static string ImportResultInfo = "{0} 导入数量为: {1}";
+
+        public static string ImportSuccess = @"导入成功!";
     }
 }
