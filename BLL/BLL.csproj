@@ -50,6 +50,7 @@
   <ItemGroup>
     <Compile Include="CommonBLL.cs" />
     <Compile Include="ExcelBLL.cs" />
+    <Compile Include="GlobalCacheBLL.cs" />
     <Compile Include="IgnoreSheetsBLL.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ServiceBLL.cs" />

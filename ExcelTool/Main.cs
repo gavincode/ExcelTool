@@ -30,16 +30,8 @@ namespace ExcelTool
     {
         #region 字段与属性
 
-        private static readonly Object lockObj = new Object();
-
         //缓存-所选Excel表单信息 (Key:文件名; Value:文件全路径名)
         internal Dictionary<String, String> mExcelFileInfos;
-
-        //缓存-已读取的Excel表单
-        internal DataSet mAllTables = new DataSet();
-
-        //缓存-已读取过的Excel对象
-        internal Dictionary<String, MoqikakaExcel> mExcels = new Dictionary<String, MoqikakaExcel>();
 
         //缓存-已存在映射关系的Excel表单名列表
         private List<String> mMappingedSheetList;
@@ -213,7 +205,7 @@ namespace ExcelTool
             #region 重置数据
 
             //清空缓存
-            mAllTables.Clear();
+            GlobalCacheBLL.mAllTables.Clear();
             treeViewExcels.Nodes.Clear();
             tabControlSheetInfo.TabPages.Clear();
             mExcelFileInfos = new Dictionary<String, String>();
@@ -339,9 +331,9 @@ namespace ExcelTool
 
             String sheetName = tabControlSheetInfo.SelectedTab.Text;
 
-            Int32 sheetRowCount = !mAllTables.Tables.Contains(sheetName) ? 0 : mAllTables.Tables[sheetName].Rows.Count - MoqikakaExcelSettings.SpecialRowList.Count + 1;
+            DataTable table = !GlobalCacheBLL.mAllTables.Tables.Contains(sheetName) ? null : GlobalCacheBLL.mAllTables.Tables[sheetName];
 
-            lblSheetInfo.Text = String.Format("表单:{0}  数据总数:{1}", sheetName, sheetRowCount);
+            ShowSheetInfo(sheetName, table);
         }
 
         /// <summary>
@@ -365,9 +357,9 @@ namespace ExcelTool
 
             if (e.Node.Level == 0)      //第一阶菜单,默认展开当前Excel所有表单
             {
-                e.Node.ExpandAll(); //展开子节点
-
                 ShowExcelSheets(clickNodeName);
+
+                e.Node.ExpandAll(); //展开子节点
             }
             else if (e.Node.Level == 1) //第二级菜单,显示单个sheet
             {
@@ -397,7 +389,7 @@ namespace ExcelTool
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void treeViewExcels_KeyDown(object sender, KeyEventArgs e)
+        private void treeViewExcels_KeyDown(Object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.C)
             {
@@ -533,7 +525,7 @@ namespace ExcelTool
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void cmsSheetNode_Opened(object sender, EventArgs e)
+        private void cmsSheetNode_Opened(Object sender, EventArgs e)
         {
             //获取所点击的结点名称
             String sheetName = treeViewExcels.SelectedNode.Text;
@@ -562,7 +554,7 @@ namespace ExcelTool
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void toolStripTextBoxComment_KeyDown(object sender, KeyEventArgs e)
+        private void toolStripTextBoxComment_KeyDown(Object sender, KeyEventArgs e)
         {
             if (e.KeyCode != Keys.Enter) return;
 
@@ -579,7 +571,7 @@ namespace ExcelTool
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void toolStripTextBoxComment_Click(object sender, EventArgs e)
+        private void toolStripTextBoxComment_Click(Object sender, EventArgs e)
         {
             toolStripTextBoxComment.Text = String.Empty;
         }
@@ -716,7 +708,7 @@ namespace ExcelTool
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void ListviewTableNames_ItemChecked(object sender, ItemCheckedEventArgs e)
+        private void ListviewTableNames_ItemChecked(Object sender, ItemCheckedEventArgs e)
         {
             //Check后加粗节点字体
             e.Item.Font = e.Item.Checked ? new Font(DefaultFont.FontFamily.Name, 9, FontStyle.Bold) : DefaultFont;
@@ -788,7 +780,7 @@ namespace ExcelTool
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void txtFindExportTable_KeyDown(object sender, KeyEventArgs e)
+        private void txtFindExportTable_KeyDown(Object sender, KeyEventArgs e)
         {
             if (e.KeyData == Keys.Enter)
             {
@@ -814,7 +806,7 @@ namespace ExcelTool
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void toolStripMenuItemOpenRoot_Click(object sender, EventArgs e)
+        private void toolStripMenuItemOpenRoot_Click(Object sender, EventArgs e)
         {
             System.Diagnostics.Process.Start(Environment.CurrentDirectory);
         }
@@ -824,7 +816,7 @@ namespace ExcelTool
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void toolStripSyncConfig_Click(object sender, EventArgs e)
+        private void toolStripSyncConfig_Click(Object sender, EventArgs e)
         {
             MoqikakaExcelSettings.Init();
         }
@@ -834,7 +826,7 @@ namespace ExcelTool
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void toolStripUpdateTime_Click(object sender, EventArgs e)
+        private void toolStripUpdateTime_Click(Object sender, EventArgs e)
         {
             ExcelBLL.UpdateCheckInfoTime();
         }
@@ -844,7 +836,7 @@ namespace ExcelTool
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void toolStripReboot_Click(object sender, EventArgs e)
+        private void toolStripReboot_Click(Object sender, EventArgs e)
         {
             String path = Path.Combine(Environment.CurrentDirectory, "ExcelTool.exe");
 
@@ -908,28 +900,27 @@ namespace ExcelTool
             //如果tabControlSheetInfo中存在该标签,则选中该标签
             foreach (TabPage tab in tabControlSheetInfo.TabPages)
             {
-                if (tab.Text == sheetName)
-                {
-                    tabControlSheetInfo.SelectedTab = tab;
-                    return;
-                }
+                if (tab.Text != sheetName) continue;
+
+                tabControlSheetInfo.SelectedTab = tab;
+                return;
             }
 
             //获取表单数据
-            DataTable dt = GetSheetTable(sheetName, mExcelFileInfos[excelName]);
+            DataTable dt = GlobalCacheBLL.GetSheetTable(sheetName, mExcelFileInfos[excelName]);
             if (dt == null) dt = new DataTable(sheetName);
 
             //创建新表单标签页
             CreateNewTabPage(dt);
 
-            lblSheetInfo.Text = String.Format("表单:{0}  数据总数:{1}", sheetName, dt.Rows.Count == 0 ? 0 : dt.Rows.Count - MoqikakaExcelSettings.SpecialRowList.Count + 1);
+            ShowSheetInfo(sheetName, dt);
         }
 
         /// <summary>
         /// 显示整个excel表单数据
         /// </summary>
         /// <param name="excelName">所属excel名</param>
-        private void ShowExcelSheets(string excelName)
+        private void ShowExcelSheets(String excelName)
         {
             //删除已有标签
             tabControlSheetInfo.TabPages.Clear();
@@ -937,7 +928,23 @@ namespace ExcelTool
             //异步加载表单数据
             Action<String> loadSheet = new Action<String>(BindSheets);
             loadSheet.BeginInvoke(mExcelFileInfos[excelName], null, null);
+        }
 
+        /// <summary>
+        /// 展示表单数据信息
+        /// </summary>
+        /// <param name="sheetName">表单名</param>
+        /// <param name="table">数据</param>
+        private void ShowSheetInfo(String sheetName, DataTable table)
+        {
+            Int32 rowNum = 0;
+
+            if (table != null && table.Rows.Count > 0)
+            {
+                rowNum = table.Rows.Count - MoqikakaExcelSettings.SpecialRowList.Count + 1;
+            }
+
+            lblSheetInfo.Text = String.Format("表单:{0}  数据总数:{1}", sheetName, rowNum);
         }
 
         /// <summary>
@@ -945,7 +952,7 @@ namespace ExcelTool
         /// </summary>
         /// <param name="e"></param>
         /// <returns></returns>
-        private bool NotValidClick(TreeNodeMouseClickEventArgs e)
+        private Boolean NotValidClick(TreeNodeMouseClickEventArgs e)
         {
             if (e.Node.Level == 0 && e.Location.X <= 35) return true;
 
@@ -960,7 +967,7 @@ namespace ExcelTool
         /// <param name="sheetName">表单名</param>
         /// <param name="searchText">搜索文本</param>
         /// <returns>是否包含文本</returns>
-        private bool ContainsText(string sheetName, string searchText)
+        private Boolean ContainsText(String sheetName, String searchText)
         {
             if (String.IsNullOrEmpty(searchText)) return false;
 
@@ -971,7 +978,7 @@ namespace ExcelTool
         /// 显示表数据
         /// </summary>
         /// <param name="tableName">表名</param>
-        private void ShowTableData(string tableName)
+        private void ShowTableData(String tableName)
         {
             //最多显示5个TabPage
             if (tabControlDbData.TabPages.Count > 4)
@@ -1007,7 +1014,7 @@ namespace ExcelTool
         /// 添加数据库表tab页
         /// </summary>
         /// <param name="tableName">表名</param>
-        private void AddTabPage(string tableName)
+        private void AddTabPage(String tableName)
         {
             TabPage newPage = new TabPage(tableName);
 
@@ -1049,11 +1056,11 @@ namespace ExcelTool
         /// <param name="filePath">excel文件路径</param>
         /// <param name="firstExcelNode">是否为第一个excel</param>
         /// <param name="lastExcelPath">最后一个excel路径</param>
-        private void LoadExcelAsync(string fileName, string filePath, string firstExcelPath, string lastExcelPath)
+        private void LoadExcelAsync(String fileName, String filePath, String firstExcelPath, String lastExcelPath)
         {
             MethodInvoker invoker = new MethodInvoker(() =>
             {
-                MoqikakaExcel excel = LoadExcel(filePath);
+                MoqikakaExcel excel = GlobalCacheBLL.LoadExcel(filePath);
 
                 TreeNode[] nodes = GetSheetNodesByExcelFile(excel);
 
@@ -1134,7 +1141,7 @@ namespace ExcelTool
         private void BindSheets(String path)
         {
             //加载excel对象
-            MoqikakaExcel excel = LoadExcel(path);
+            MoqikakaExcel excel = GlobalCacheBLL.LoadExcel(path);
 
             TabPage[] pages = new TabPage[excel.NumberOfSheets];
 
@@ -1165,15 +1172,17 @@ namespace ExcelTool
             {
                 sheetName = excel.GetSheetName(i);
 
-                table = GetSheetTable(sheetName, excel);
+                table = GlobalCacheBLL.GetSheetTable(sheetName, excel);
 
                 //通知主线程控件,数据已准备好
                 tabControlSheetInfo.Invoke(new MethodInvoker(() =>
                 {
-                    if (tabControlSheetInfo.TabPages.Count > i)
-                    {
-                        tabControlSheetInfo.TabPages[i].Controls.Add(CreatSingleGridview(table));
-                    }
+                    if (tabControlSheetInfo.TabPages.Count <= i) return;
+
+                    tabControlSheetInfo.TabPages[i].Controls.Add(CreatSingleGridview(table));
+
+                    //展示第一个表单信息
+                    if (i == 0) ShowSheetInfo(sheetName, table);
                 }));
             }
         }
@@ -1234,9 +1243,21 @@ namespace ExcelTool
 
             //刷新UI控件状态
             RefreshUIStatus();
-            
-            //todo refactoring here
 
+            //记录导入结果日志
+            String resultMessage = LogResult(res);
+
+            //展示导入结果
+            MessageBox.Show(resultMessage);
+        }
+
+        /// <summary>
+        /// 记录导入结果日志
+        /// </summary>
+        /// <param name="resultData">导入结果数据</param>
+        /// <returns>是否需要更新CheckTime</returns>
+        private String LogResult(Dictionary<String, int> resultData)
+        {
             //所有表单导入明细
             StringBuilder allTableImportDetails = new StringBuilder(ConstantText.ImportDetailResultTips);
 
@@ -1244,13 +1265,13 @@ namespace ExcelTool
             StringBuilder failedTableImportDetails = new StringBuilder(ConstantText.ImorptErrorResultTips);
 
             //导入失败的表单数量
-            Int32 failedCount = 0;
+            Boolean hasFailed = false;
 
             //是否已更新checktime
-            Boolean hasUpdated = false;
+            Boolean updateCheckTime = false;
 
             //遍历每个表单导入结果,构造导入结果明细
-            foreach (var item in res)
+            foreach (var item in resultData)
             {
                 //添加到所有表单导入情况
                 allTableImportDetails.AppendLine(String.Format(ConstantText.ImportResultInfo, item.Key, item.Value));
@@ -1258,14 +1279,18 @@ namespace ExcelTool
                 //导入结果为0的表单,添加到失败明细
                 if (item.Value == 0)
                 {
-                    failedCount++;
+                    hasFailed = true;
                     failedTableImportDetails.AppendLine(String.Format(ConstantText.ImportResultInfo, item.Key, item.Value));
                 }
-                else if (!hasUpdated && (item.Key.StartsWith("b_") || item.Key.StartsWith("d_")))
+                else if (!updateCheckTime && (item.Key.StartsWith("b_") || item.Key.StartsWith("d_")))
                 {
-                    ExcelBLL.UpdateCheckInfoTime();
-                    hasUpdated = true;
+                    updateCheckTime = true;
                 }
+            }
+
+            if (updateCheckTime)
+            {
+                ExcelBLL.UpdateCheckInfoTime(); //更新导入时间
             }
 
             //记录所有表单导入明细
@@ -1277,15 +1302,7 @@ namespace ExcelTool
                 Trace.Write(failedTableImportDetails.ToString());
             }
 
-            //如果全部导入成功 (包括 首页无数据的情况)
-            if (failedCount == 0)
-            {
-                MessageBox.Show(ConstantText.ImportSuccess);
-            }
-            else
-            {
-                MessageBox.Show(failedTableImportDetails.ToString());
-            }
+            return hasFailed ? failedTableImportDetails.ToString() : ConstantText.ImportSuccess;
         }
 
         /// <summary>
@@ -1339,7 +1356,7 @@ namespace ExcelTool
                 //构造sql执行语句
                 List<String> sqlList = new List<String>();
 
-                DataTable table = GetSheetTable(sheetName, selectedSheets[sheetName]);
+                DataTable table = GlobalCacheBLL.GetSheetTable(sheetName, selectedSheets[sheetName]);
 
                 try
                 {
@@ -1426,82 +1443,6 @@ namespace ExcelTool
         }
 
         #region Excel读取/缓存
-
-        /// <summary>
-        /// 加载Excel对象
-        /// </summary>
-        /// <param name="path">excel文档</param>
-        /// <returns>Excel对象</returns>
-        internal MoqikakaExcel LoadExcel(String path)
-        {
-            //优先读取缓存
-            if (mExcels.ContainsKey(path))
-            {
-                MoqikakaExcel cache = mExcels[path];
-
-                FileInfo info = new FileInfo(path);
-
-                //文档没有修改过
-                if (cache.ModifyDate == info.LastWriteTime)
-                    return mExcels[path];
-
-                //清理表表数据缓存
-                foreach (var sheetName in cache.SheetNameList)
-                {
-                    if (mAllTables.Tables.Contains(sheetName))
-                        mAllTables.Tables.Remove(sheetName);
-                }
-            }
-
-            //重新加载
-            MoqikakaExcel excel = new MoqikakaExcel(path);
-
-            //缓存已读Excel文档对象 (并发插入异常?)
-            lock (lockObj)
-                mExcels[path] = excel;
-
-            return excel;
-        }
-
-        /// <summary>
-        /// 获取表单数据
-        /// </summary>
-        /// <param name="sheetName">表单名</param>
-        /// <param name="filePath">文档路径</param>
-        /// <returns>表单数据</returns>
-        internal DataTable GetSheetTable(String sheetName, String filePath)
-        {
-            //获取excel文档对象
-            MoqikakaExcel excel = LoadExcel(filePath);
-
-            return GetSheetTable(sheetName, excel);
-        }
-
-        /// <summary>
-        /// 获取表单数据
-        /// </summary>
-        /// <param name="sheetName">表单名</param>
-        /// <param name="excel">文档对象</param>
-        /// <returns>表单数据</returns>
-        internal DataTable GetSheetTable(String sheetName, MoqikakaExcel excel)
-        {
-            //优先读取缓存数据
-            if (mAllTables.Tables.Contains(sheetName))
-                return mAllTables.Tables[sheetName];
-
-            //没用的表单直接返回
-            if (ExcelBLL.IsUselessSheet(sheetName))
-                return null;
-
-            //读取表单
-            var table = ExcelBLL.TryRead(excel, sheetName);
-
-            //加入缓存
-            if (table != null)
-                mAllTables.Tables.Add(table);
-
-            return table;
-        }
 
         #endregion
 

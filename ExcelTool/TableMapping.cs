@@ -284,7 +284,7 @@ namespace ExcelTool
             Form form = this.Owner;
 
             //从Excel中读取该表单的字段列表
-            List<String> list = CommonBLL.GetCloumnList(_parent.GetSheetTable(_sheetName, _excelFile));
+            List<String> list = CommonBLL.GetCloumnList(GlobalCacheBLL.GetSheetTable(_sheetName, _excelFile));
 
             if (list == null || list.Count == 0) return;
 
