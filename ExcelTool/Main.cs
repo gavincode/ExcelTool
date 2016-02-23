@@ -25,6 +25,7 @@ namespace ExcelTool
     using Utils.Configuration;
     using Utils.Excel;
     using Utils.Xml;
+    using Utils.Log;
 
     public partial class Main : Form
     {
@@ -71,6 +72,9 @@ namespace ExcelTool
         {
             InitializeComponent();
 
+            //初始化设置
+            InitSettings();
+
             //加载数据库连接字符串
             LoadConnectionString();
 
@@ -82,6 +86,20 @@ namespace ExcelTool
 
             //测试连接字符串状态
             btnTestDbConnection_Click(null, null);
+        }
+
+        /// <summary>
+        /// 初始化文件夹
+        /// </summary>
+        private void InitSettings()
+        {
+            //输出日志替换为自定义模式
+            Trace.Listeners.Clear();
+            Trace.Listeners.Add(new LogTrace(Environment.CurrentDirectory + "\\Log"));
+
+            //初始化SQL存放文件路径
+            if (!Directory.Exists(Environment.CurrentDirectory + "\\SQL"))
+                Directory.CreateDirectory(Environment.CurrentDirectory + "\\SQL");
         }
 
         /// <summary>
