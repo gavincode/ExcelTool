@@ -13,7 +13,6 @@ using System.Data;
 namespace DAL
 {
     using MySql.Data.MySqlClient;
-    using Moqikaka.Util.DB;
     using Utils.Configuration;
 
     /// <summary>
@@ -57,7 +56,7 @@ namespace DAL
         {
             try
             {
-                return MySQLUtil.ExecuteNonQuery(DbConnectionString, CommandType.Text, commandText, commandParameters);
+                return MySqlHelper.ExecuteNonQuery(DbConnectionString, commandText, commandParameters);
             }
             catch (Exception ex)
             {
@@ -75,7 +74,7 @@ namespace DAL
         {
             try
             {
-                return MySQLUtil.ExecuteScalar(DbConnectionString, CommandType.Text, commandText, commandParameters);
+                return MySqlHelper.ExecuteScalar(DbConnectionString, commandText, commandParameters);
             }
             catch (Exception ex)
             {
@@ -93,7 +92,7 @@ namespace DAL
         {
             try
             {
-                DataSet ds = MySQLUtil.ExecuteDataset(DbConnectionString, CommandType.Text, commandText, commandParameters);
+                DataSet ds = MySqlHelper.ExecuteDataset(DbConnectionString, commandText, commandParameters);
                 if (ds != null && ds.Tables.Count > 0)
                 {
                     return ds.Tables[0];

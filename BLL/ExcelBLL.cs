@@ -370,7 +370,7 @@ namespace BLL
             List<String> sqlList = new List<String>();
 
             //插入数据字段名
-            String columns = String.Format("`{0}`", String.Join("`,`", dbColumnName));
+            String columns = String.Format("`{0}`", String.Join("`,`", dbColumnName.ToArray()));
 
             //非数据行数量
             Int32 tempRowNum = MoqikakaExcelSettings.SpecialRowList.Count - 1;
@@ -435,7 +435,7 @@ namespace BLL
             //若字段和描述均存在
             else if (MoqikakaExcelSettings.DescRowNum != -1 && MoqikakaExcelSettings.NameRowNum != -1)
             {
-                columsNames = String.Join("`,`", dt.Rows[MoqikakaExcelSettings.NameRowNum - 1].ItemArray);
+                columsNames = String.Join("`,`", dt.Rows[MoqikakaExcelSettings.NameRowNum - 1].ItemArray.Cast<String>().ToArray());
 
                 columsNames = String.Format("`{0}`", columsNames);
             }
@@ -560,7 +560,7 @@ namespace BLL
                 {
                     sqlList.Add(sqlBuilder.ToString().TrimEnd().TrimEnd(',') + ';');
 
-                    sqlBuilder.Clear();
+                    sqlBuilder = new StringBuilder();
                     sqlBuilder.AppendLine(insertFormater);
 
                     num = 1;
@@ -616,7 +616,7 @@ namespace BLL
                     }
 
                     if (primaryKeyList.Count > 0)
-                        colums += String.Format("PRIMARY KEY ({0})", String.Join(",", primaryKeyList));
+                        colums += String.Format("PRIMARY KEY ({0})", String.Join(",", primaryKeyList.ToArray()));
                 }
                 //否则为默认字段类型和长度
                 else
